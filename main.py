@@ -5,7 +5,11 @@ from discord.ext import commands
 import random
 from cogs import greeting
 import json
-from discord import app_commands
+from discord import app_commands 
+import discord.ext
+import interaction
+import interactions
+
 
 
 
@@ -57,23 +61,81 @@ bot = commands.Bot(command_prefix=get_server_prefix, intents=discord.Intents.all
 # Event #
 @bot.event
 async def on_ready():
+    
     logger.info(f"User: {bot.user} (ID: {bot.user.id})")
     await bot.tree.sync()
     print("đã kết nối")
 
-@bot.tree.command(name="ping", description="test slash/hybrid")
-async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message(f"Pong!, độ trễ của bot là {round(bot.latency * 1000)} ms")
-    
+@bot.event
+async def on_guild_join(guild):
+    with open("Bano/unmute.json", "r") as f:
+       mute_role = json.load(f)
 
+       mute_role[str(guild.id)] = None
+
+    with open("Bano/unmute.json", "w") as f:  # Make sure to open the file in write mode
+        json.dump(mute_role, f, indent=4)
+
+@bot.command()
+@commands.has_permissions(administrator=True)
+@commands.has_permissions(manage_guild=True)
+@commands.is_owner()
+async def setmuterole(ctx, role: discord.Role):  # Remove unnecessary self parameter
+        with open("Bano/unmute.json", "r") as f:
+            mute_role = json.load(f)
+
+        mute_role[str(ctx.guild.id)] = role.name  # Use ctx.guild.id instead of guild.id
+
+        with open("Bano/unmute.json", "w") as f:  # Make sure to open the file in write mode
+            json.dump(mute_role, f, indent=4)
+
+        conf_embed = discord.Embed(title="Thành Công", color= discord.Color.brand_red())
+        conf_embed.add_field(name="Đã Set Role Mute", value=f"Role Mute Đã Được Tạo, {role.mention}")
+        await ctx.send(embed=conf_embed)
+
+@commands.command
+@commands.has_permissions(administrator=True)
+@commands.has_permissions(manage_guild=True)
+async def mute(self, ctx, member: discord.Member):
+         with open("Bano/unmute.json", "r") as f:
+            mute_role = json.load(f)
 
 
 @bot.event
-async def on_guild_join(guild):
-    with open("prefix.json", "r") as f:
-        prefix = json.load(f)
+async def on_guild_remove(guild):
+        with open("Bano/unmute.json", "r") as f:
+         mute_role = json.load(f)
 
-    prefix[str(guild.id)] = "!"
+        mute_role[str(guild.id)] = None
+
+        with open("Bano/unmute.json", "r") as f:
+          json.dump(mute_role, f, indent=4)
+
+
+ 
+
+
+@bot.tree.command(name="ping", description="kiểm tra bot có hoạt động hay không")
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message(f"Pong!, độ trễ của bot là {round(bot.latency * 1000)} ms")
+    
+@bot.hybrid_command(name="avatar", description="Hiện Avatar của người bạn ping")
+async def avatar(ctx, member: discord.Member=None):
+    if member is None:
+        member = ctx.author
+
+    avatar_embed = discord.Embed(title=f"{member.mention} Avatar", color=discord.Color.random())
+    avatar_embed.set_image(url=member.avatar.url)
+    avatar_embed.set_footer(text=f"Yêu cầu bởi {ctx.author.mention}", icon_url=ctx.author.avatar.url)
+
+    await ctx.send(embed=avatar_embed)
+
+    @bot.event
+    async def on_guild_join(guild):
+                          with open("prefix.json", "r") as f:
+                              prefix = json.load(f)
+
+                              prefix[str(guild.id)] = "!"
 
 @bot.event
 async def on_guild_remove(guild):
